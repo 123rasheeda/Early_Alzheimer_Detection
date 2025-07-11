@@ -14,7 +14,7 @@ alz_labels = ['Healthy', 'Mild', 'Moderate', 'VeryMild']
 @st.cache_resource
 def load_model_func():
     try:
-        model = load_model("alzheimer_edge_model_.keras")
+        model = load_model("alzheimer_edge_model_reduced.keras")
         return model
     except Exception as e:
         st.error(f"❌ Model loading failed: {e}")
