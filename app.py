@@ -1,9 +1,9 @@
-
 import streamlit as st
 import numpy as np
 import cv2
 from PIL import Image
-import tensorflow.lite as tflite
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import img_to_array
 
 st.set_page_config(page_title="Alzheimer Detection", layout="centered")
 st.title("🧠 Early Alzheimer Detection")
@@ -12,18 +12,15 @@ st.write("Upload a brain MRI to detect the stage of Alzheimer's disease.")
 alz_labels = ['Healthy', 'Mild', 'Moderate', 'VeryMild']
 
 @st.cache_resource
-def load_tflite_model():
+def load_model_func():
     try:
-        interpreter = tflite.Interpreter(model_path="alzheimer_edge_model.tflite")
-        interpreter.allocate_tensors()
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
-        return interpreter, input_details, output_details
+        model = load_model("alzheimer_edge_model.keras")
+        return model
     except Exception as e:
         st.error(f"❌ Model loading failed: {e}")
-        return None, None, None
+        return None
 
-interpreter, input_details, output_details = load_tflite_model()
+model = load_model_func()
 
 def is_brain_mri(image):
     try:
@@ -42,19 +39,15 @@ def predict_mri(image):
     gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
     edge = cv2.Canny(gray, 100, 200)
     edge_rgb = cv2.cvtColor(edge, cv2.COLOR_GRAY2RGB) / 255.0
-    input_data = np.expand_dims(edge_rgb.astype(np.float32), axis=0)
-
-    interpreter.set_tensor(input_details[0]['index'], input_data)
-    interpreter.invoke()
-    preds = interpreter.get_tensor(output_details[0]['index'])[0]
-
+    input_img = np.expand_dims(img_to_array(edge_rgb), axis=0)
+    preds = model.predict(input_img)
     stage = alz_labels[np.argmax(preds)]
     confidence = round(100 * np.max(preds), 2)
     return stage, confidence, edge
 
 uploaded_file = st.file_uploader("📤 Upload a Brain MRI Image", type=["jpg", "jpeg", "png"])
 
-if uploaded_file and interpreter:
+if uploaded_file and model:
     img = Image.open(uploaded_file).convert("RGB")
     st.image(img, caption="Uploaded Brain Image", use_column_width=True)
 
@@ -67,3 +60,4 @@ if uploaded_file and interpreter:
         st.image(edge, caption="Edge Detection", use_column_width=True)
 elif not uploaded_file:
     st.info("Please upload an image to begin.")
+    
